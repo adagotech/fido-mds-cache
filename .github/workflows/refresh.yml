@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/fido-mds-cache
+  IMAGE: ${{ secrets.DOCKERHUB_ORG }}/fido-mds-cache
 
 jobs:
   refresh:
