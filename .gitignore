@@ -1,0 +1,3 @@
+# The MDS blob is never committed — it is downloaded by CI / the Docker build.
+/blob.jwt
+*.jwt

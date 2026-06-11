@@ -1,0 +1,92 @@
+name: Refresh FIDO MDS cache
+
+on:
+  # 10:00 UTC every day. Adjust the cron if you need a different timezone.
+  schedule:
+    - cron: "0 10 * * *"
+  # Allow manual runs (e.g. to force a rebuild).
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build and push the image even if the blob has not changed"
+        type: boolean
+        default: false
+
+# Required so the workflow can commit the updated next-update.txt back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-fido-mds
+  cancel-in-progress: false
+
+env:
+  IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/fido-mds-cache
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check upstream blob
+        id: refresh
+        run: ./scripts/refresh.sh
+
+      - name: Decide whether to build
+        id: decide
+        run: |
+          if [ "${{ steps.refresh.outputs.changed }}" = "true" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated next-update.txt
+        if: steps.refresh.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add next-update.txt
+          git commit -m "chore: update FIDO MDS blob (nextUpdate ${{ steps.refresh.outputs.next_update }}, no ${{ steps.refresh.outputs.blob_no }})"
+          git push
+
+      - name: Set up Docker Buildx
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Read current nextUpdate
+        if: steps.decide.outputs.build == 'true'
+        id: meta
+        run: echo "next_update=$(tr -d '[:space:]' < next-update.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          no-cache: true
+          build-args: |
+            NEXT_UPDATE=${{ steps.meta.outputs.next_update }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.next_update }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### FIDO MDS cache refresh"
+            echo ""
+            echo "- Blob changed: \`${{ steps.refresh.outputs.changed }}\`"
+            echo "- Built/pushed image: \`${{ steps.decide.outputs.build }}\`"
+            echo "- nextUpdate: \`$(tr -d '[:space:]' < next-update.txt)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
