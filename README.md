@@ -27,7 +27,7 @@ chain against the FIDO root.
 Run the image and serve the blob on port 8080:
 
 ```bash
-docker run -d --name fido-mds-cache -p 8080:80 adagotech/fido-mds-cache:latest
+docker run -d --name fido-mds-cache -p 8080:80 adagotechnologies/fido-mds-cache:latest
 ```
 
 Then fetch the blob from your cache instead of from FIDO:
@@ -58,7 +58,7 @@ Point your WebAuthn/FIDO library's metadata URL at `http://<host>:8080/blob.jwt`
 ```yaml
 services:
   fido-mds-cache:
-    image: adagotech/fido-mds-cache:latest
+    image: adagotechnologies/fido-mds-cache:latest
     ports:
       - "8080:80"
     restart: unless-stopped
