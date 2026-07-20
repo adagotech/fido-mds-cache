@@ -4,9 +4,10 @@
 # against the one recorded in next-update.txt. If they differ, next-update.txt is
 # rewritten and a "changed=true" output is emitted for the CI pipeline to act on.
 #
-# The blob itself is NOT kept (it is large and is rebuilt into the image by the
-# Dockerfile). This script only exists to decide whether a rebuild is needed and
-# to record the new nextUpdate date.
+# The downloaded blob is written to blob.jwt at the repo root so the Docker build
+# can COPY it from the build context instead of downloading it a second time
+# (a second request can trip the upstream 429 rate limit this cache exists to
+# avoid). blob.jwt is gitignored and never committed.
 #
 # Outputs (appended to $GITHUB_OUTPUT when set):
 #   changed=true|false
@@ -18,25 +19,23 @@ set -euo pipefail
 BLOB_URL="${BLOB_URL:-https://mds.fidoalliance.org}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NEXT_UPDATE_FILE="$ROOT/next-update.txt"
+BLOB_FILE="$ROOT/blob.jwt"
 
-TMP_BLOB="$(mktemp)"
-trap 'rm -f "$TMP_BLOB"' EXIT
+meta_json="$(mktemp)"
+trap 'rm -f "$meta_json"' EXIT
 
 echo "Downloading blob from $BLOB_URL ..."
-curl -fsSL --retry 5 --retry-delay 10 "$BLOB_URL" -o "$TMP_BLOB"
+curl -fsSL --retry 5 --retry-delay 10 "$BLOB_URL" -o "$BLOB_FILE"
 
 # A JWT is three base64url segments separated by dots.
-test -s "$TMP_BLOB" || { echo "ERROR: downloaded file is empty" >&2; exit 1; }
-[ "$(tr -cd '.' < "$TMP_BLOB" | wc -c)" -eq 2 ] || {
+test -s "$BLOB_FILE" || { echo "ERROR: downloaded file is empty" >&2; exit 1; }
+[ "$(tr -cd '.' < "$BLOB_FILE" | wc -c)" -eq 2 ] || {
     echo "ERROR: downloaded file does not look like a JWT" >&2; exit 1; }
 
 # Decode the JWT payload (second segment) from base64url to JSON. The payload can
 # be many megabytes, so this streams through `tr` rather than using bash string
 # substitution (which is pathologically slow on large strings).
-meta_json="$(mktemp)"
-trap 'rm -f "$TMP_BLOB" "$meta_json"' EXIT
-
-b64="$(cut -d. -f2 "$TMP_BLOB" | tr -d '\n' | tr '_-' '/+')"
+b64="$(cut -d. -f2 "$BLOB_FILE" | tr -d '\n' | tr '_-' '/+')"
 case $(( ${#b64} % 4 )) in
     2) b64="${b64}==";;
     3) b64="${b64}=";;

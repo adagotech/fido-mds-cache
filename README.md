@@ -70,19 +70,9 @@ You can also trigger a run manually from the Actions tab (wit
 
 | File                            | Purpose                                                        |
 | ------------------------------- | ------------------------------------------------------------- |
-| `Dockerfile`                    | Downloads & verifies the blob, builds the nginx image.        |
+| `Dockerfile`                    | Copies the pre-downloaded blob into a minimal nginx image.    |
 | `nginx/default.conf`            | nginx config serving the blob, `next-update.txt`, `/healthz`. |
 | `next-update.txt`               | The `nextUpdate` date of the currently-cached blob.           |
-| `scripts/refresh.sh`            | Downloads the blob and detects whether it changed.            |
+| `scripts/refresh.sh`            | Downloads the blob (to `blob.jwt`) and detects whether it changed. |
 | `.github/workflows/refresh.yml` | Daily check + build/push pipeline.                            |
 
-### Build locally
-
-```bash
-docker build -t fido-mds-cache .
-docker run --rm -p 8080:80 fido-mds-cache
-```
-
-The build downloads the current blob from FIDO directly.
-
-[mds]: https://fidoalliance.org/metadata/
