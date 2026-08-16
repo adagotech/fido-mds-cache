@@ -50,8 +50,9 @@ Point your WebAuthn/FIDO library's metadata URL at `http://<host>:8080/blob.jwt`
 ### Tags
 
 - `latest` — always the most recently published blob.
-- `YYYY-MM-DD` — pinned to the blob whose `nextUpdate` is that date (e.g.
-  `2026-07-01`), if you want to pin to a specific release.
+- `YYYY-MM-DD` — the UTC date the image was built (e.g. `2026-07-01`), if you
+  want to pin to a specific release. The blob's own `nextUpdate` date is
+  available from `/next-update.txt` and the `fido.mds.next-update` image label.
 
 ### Docker Compose
 

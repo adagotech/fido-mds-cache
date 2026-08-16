@@ -66,7 +66,9 @@ jobs:
       - name: Read current nextUpdate
         if: steps.decide.outputs.build == 'true'
         id: meta
-        run: echo "next_update=$(tr -d '[:space:]' < next-update.txt)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "next_update=$(tr -d '[:space:]' < next-update.txt)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         if: steps.decide.outputs.build == 'true'
@@ -79,7 +81,7 @@ jobs:
             NEXT_UPDATE=${{ steps.meta.outputs.next_update }}
           tags: |
             ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.next_update }}
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.build_date }}
 
       - name: Summary
         run: |
@@ -89,4 +91,5 @@ jobs:
             echo "- Blob changed: \`${{ steps.refresh.outputs.changed }}\`"
             echo "- Built/pushed image: \`${{ steps.decide.outputs.build }}\`"
             echo "- nextUpdate: \`$(tr -d '[:space:]' < next-update.txt)\`"
+            echo "- Image tag: \`${{ steps.meta.outputs.build_date }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
