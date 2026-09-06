@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 #
 # Download the FIDO Alliance MDS blob, verify it, and compare its nextUpdate date
-# against the one recorded in next-update.txt. If they differ, next-update.txt is
-# rewritten and a "changed=true" output is emitted for the CI pipeline to act on.
+# and serial number against the ones recorded in next-update.txt and blob-no.txt.
+# If either differs, both files are rewritten and a "changed=true" output is
+# emitted for the CI pipeline to act on.
+#
+# Both values are compared because FIDO republishes the blob within a single
+# validity window: the serial (`no`) increments while `nextUpdate` stays put, so
+# keying on nextUpdate alone would leave the cache serving a stale blob until the
+# start of the next month.
 #
 # The downloaded blob is written to blob.jwt at the repo root so the Docker build
 # can COPY it from the build context instead of downloading it a second time
@@ -19,6 +25,7 @@ set -euo pipefail
 BLOB_URL="${BLOB_URL:-https://mds.fidoalliance.org}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NEXT_UPDATE_FILE="$ROOT/next-update.txt"
+BLOB_NO_FILE="$ROOT/blob-no.txt"
 BLOB_FILE="$ROOT/blob.jwt"
 
 meta_json="$(mktemp)"
@@ -47,23 +54,27 @@ next_update="$(jq -r '.nextUpdate // empty' "$meta_json")"
 blob_no="$(jq -r '.no // empty' "$meta_json")"
 
 [ -n "$next_update" ] || { echo "ERROR: could not parse nextUpdate from blob" >&2; exit 1; }
+[ -n "$blob_no" ] || { echo "ERROR: could not parse no from blob" >&2; exit 1; }
 
-current=""
-[ -f "$NEXT_UPDATE_FILE" ] && current="$(tr -d '[:space:]' < "$NEXT_UPDATE_FILE")"
+current_next_update=""
+[ -f "$NEXT_UPDATE_FILE" ] && current_next_update="$(tr -d '[:space:]' < "$NEXT_UPDATE_FILE")"
+current_blob_no=""
+[ -f "$BLOB_NO_FILE" ] && current_blob_no="$(tr -d '[:space:]' < "$BLOB_NO_FILE")"
 
-echo "Current nextUpdate: ${current:-<none>}"
+echo "Current  nextUpdate: ${current_next_update:-<none>} (blob no=${current_blob_no:-<none>})"
 echo "Upstream nextUpdate: $next_update (blob no=$blob_no)"
 
 emit() { printf '%s\n' "$1" >> "${GITHUB_OUTPUT:-/dev/null}"; }
 
-if [ "$current" = "$next_update" ]; then
+if [ "$current_next_update" = "$next_update" ] && [ "$current_blob_no" = "$blob_no" ]; then
     echo "Cache is up to date; nothing to do."
     emit "changed=false"
     exit 0
 fi
 
-echo "New blob detected; updating $NEXT_UPDATE_FILE"
+echo "New blob detected; updating $NEXT_UPDATE_FILE and $BLOB_NO_FILE"
 printf '%s\n' "$next_update" > "$NEXT_UPDATE_FILE"
+printf '%s\n' "$blob_no" > "$BLOB_NO_FILE"
 emit "changed=true"
 emit "next_update=$next_update"
 emit "blob_no=$blob_no"

@@ -48,7 +48,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add next-update.txt
+          git add next-update.txt blob-no.txt
           git commit -m "chore: update FIDO MDS blob (nextUpdate ${{ steps.refresh.outputs.next_update }}, no ${{ steps.refresh.outputs.blob_no }})"
           git push
 
@@ -68,6 +68,7 @@ jobs:
         id: meta
         run: |
           echo "next_update=$(tr -d '[:space:]' < next-update.txt)" >> "$GITHUB_OUTPUT"
+          echo "blob_no=$(tr -d '[:space:]' < blob-no.txt)" >> "$GITHUB_OUTPUT"
           echo "build_date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
@@ -79,6 +80,7 @@ jobs:
           no-cache: true
           build-args: |
             NEXT_UPDATE=${{ steps.meta.outputs.next_update }}
+            BLOB_NO=${{ steps.meta.outputs.blob_no }}
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ steps.meta.outputs.build_date }}
@@ -91,5 +93,6 @@ jobs:
             echo "- Blob changed: \`${{ steps.refresh.outputs.changed }}\`"
             echo "- Built/pushed image: \`${{ steps.decide.outputs.build }}\`"
             echo "- nextUpdate: \`$(tr -d '[:space:]' < next-update.txt)\`"
+            echo "- Blob no: \`$(tr -d '[:space:]' < blob-no.txt)\`"
             echo "- Image tag: \`${{ steps.meta.outputs.build_date }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -7,9 +7,11 @@
 FROM nginx:1.27-alpine
 
 ARG NEXT_UPDATE="unknown"
+ARG BLOB_NO="unknown"
 
 COPY blob.jwt /usr/share/nginx/html/blob.jwt
 COPY next-update.txt /usr/share/nginx/html/next-update.txt
+COPY blob-no.txt /usr/share/nginx/html/blob-no.txt
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # Sanity-check that the blob is a non-empty three-part JWT.
@@ -20,7 +22,8 @@ LABEL org.opencontainers.image.title="FIDO MDS Cache" \
       org.opencontainers.image.description="Caches and serves the FIDO Alliance Metadata Service (MDS) blob via nginx" \
       org.opencontainers.image.source="https://mds.fidoalliance.org" \
       org.opencontainers.image.url="https://mds.fidoalliance.org" \
-      fido.mds.next-update="${NEXT_UPDATE}"
+      fido.mds.next-update="${NEXT_UPDATE}" \
+      fido.mds.blob-no="${BLOB_NO}"
 
 EXPOSE 80
 
