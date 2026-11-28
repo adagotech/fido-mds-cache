@@ -1,6 +1,6 @@
 # FIDO MDS Cache
 
-A tiny, self-refreshing cache for the [FIDO Alliance Metadata Service (MDS)][mds]
+A tiny, self-refreshing cache for the FIDO Alliance Metadata Service (MDS)
 blob, packaged as an nginx Docker image.
 
 ## Why
@@ -14,15 +14,14 @@ This project caches the blob and serves it from your own infrastructure:
 - A daily GitHub Actions job checks the upstream blob and, when a new version is
   published, rebuilds and pushes a Docker image containing the latest blob. A
   new version means either a new `nextUpdate` date or a new serial number
-  (`no`) — FIDO republishes the blob within a single validity window, so the
-  serial is what catches those in-window updates.
+  (`no`).
 - The image is a minimal nginx server that serves the blob at `/blob.jwt`.
 - Your relying parties point at **your** cached image instead of hammering the
   FIDO endpoint, so you only fetch upstream once per release (in CI) rather than
   on every request or deploy.
 
 The MDS blob is fully signed by the FIDO Alliance, so caching and re-serving it
-does not weaken its trust guarantees — clients still verify the JWT signature
+does not weaken its trust guarantees. Clients must still verify the JWT signature
 chain against the FIDO root. As of the 2026-08-31 MDS update that chain roots to
 **GlobalSign Root R46** (cross-signed by the older GlobalSign Root CA – R3, so
 the `x5c` header now carries three certificates). Relying parties must have R46
@@ -73,16 +72,14 @@ services:
     restart: unless-stopped
 ```
 
-You can also trigger a run manually from the Actions tab (wit
-
 ## Repository layout
 
-| File                            | Purpose                                                        |
-| ------------------------------- | ------------------------------------------------------------- |
-| `Dockerfile`                    | Copies the pre-downloaded blob into a minimal nginx image.    |
-| `nginx/default.conf`            | nginx config serving the blob, `next-update.txt`, `/healthz`. |
-| `next-update.txt`               | The `nextUpdate` date of the currently-cached blob.           |
-| `blob-no.txt`                   | The serial number (`no`) of the currently-cached blob.        |
+| File                            | Purpose                                                            |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `Dockerfile`                    | Copies the pre-downloaded blob into a minimal nginx image.         |
+| `nginx/default.conf`            | nginx config serving the blob, `next-update.txt`, `/healthz`.      |
+| `next-update.txt`               | The `nextUpdate` date of the currently-cached blob.                |
+| `blob-no.txt`                   | The serial number (`no`) of the currently-cached blob.             |
 | `scripts/refresh.sh`            | Downloads the blob (to `blob.jwt`) and detects whether it changed. |
-| `.github/workflows/refresh.yml` | Daily check + build/push pipeline.                            |
+| `.github/workflows/refresh.yml` | Daily check + build/push pipeline.                                 |
 
